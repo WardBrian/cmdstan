@@ -1,6 +1,7 @@
 #ifndef CMDSTAN_COMMAND_HPP
 #define CMDSTAN_COMMAND_HPP
 
+#include <cmdstan/arguments/arg_model.hpp>
 #include <cmdstan/arguments/arg_data.hpp>
 #include <cmdstan/arguments/arg_id.hpp>
 #include <cmdstan/arguments/arg_init.hpp>
@@ -98,6 +99,7 @@ int command(int argc, const char *argv[]) {
 
   // Read arguments
   std::vector<argument *> valid_arguments;
+  valid_arguments.push_back(new arg_model());
   valid_arguments.push_back(new arg_id());
   valid_arguments.push_back(new arg_data());
   valid_arguments.push_back(new arg_init());
@@ -205,7 +207,7 @@ int command(int argc, const char *argv[]) {
       = get_var_context(filename);
 
   // Instantiate model
-  DynamicModel dynamic_model(std::string("./bernoulli.so"));
+  DynamicModel dynamic_model(get_arg_val<string_argument>(parser, "model"));
 
   if (!dynamic_model.load_model()) {
     return return_codes::NOT_OK;
