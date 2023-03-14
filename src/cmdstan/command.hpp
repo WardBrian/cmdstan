@@ -12,6 +12,7 @@
 #include <cmdstan/arguments/arg_profile_file.hpp>
 #include <cmdstan/arguments/argument_parser.hpp>
 #include <cmdstan/command_helper.hpp>
+#include <cmdstan/dynamic_model.hpp>
 #include <cmdstan/return_codes.hpp>
 #include <cmdstan/write_chain.hpp>
 #include <cmdstan/write_datetime.hpp>
@@ -72,11 +73,6 @@
 #include <stan/math/prim/functor/mpi_command.hpp>
 #include <stan/math/prim/functor/mpi_distributed_apply.hpp>
 #endif
-
-// forward declaration for function defined in another translation unit
-stan::model::model_base &new_model(stan::io::var_context &data_context,
-                                   unsigned int seed, std::ostream *msg_stream);
-stan::math::profile_map &get_stan_profile_data();
 
 namespace cmdstan {
 
@@ -209,8 +205,16 @@ int command(int argc, const char *argv[]) {
       = get_var_context(filename);
 
   // Instantiate model
+  DynamicModel dynamic_model(std::string("./bernoulli.so"));
+
+  if (!dynamic_model.load_model()) {
+    return return_codes::NOT_OK;
+  }
+
+  // note: this method is __much__ slower, I'm guessing due to lack of inlining etc.
+  // We could define the dynamic piece as the actual algorithms, I suppose
   stan::model::model_base &model
-      = new_model(*var_context, random_seed, &std::cout);
+      = dynamic_model.new_model(*var_context, random_seed, &std::cout);
 
   std::vector<std::string> model_compile_info = model.model_compile_info();
 
@@ -982,19 +986,20 @@ int command(int argc, const char *argv[]) {
   }
   //////////////////////////////////////////////////
 
-  stan::math::profile_map &profile_data = get_stan_profile_data();
-  if (profile_data.size() > 0) {
-    std::string profile_file_name
-        = dynamic_cast<string_argument *>(
-              parser.arg("output")->arg("profile_file"))
-              ->value();
-    std::fstream profile_stream(profile_file_name.c_str(), std::fstream::out);
-    if (!sig_figs_arg->is_default()) {
-      profile_stream << std::setprecision(sig_figs_arg->value());
-    }
-    write_profiling(profile_stream, profile_data);
-    profile_stream.close();
-  }
+  //  TODO
+  //  stan::math::profile_map &profile_data = get_stan_profile_data();
+  //   if (profile_data.size() > 0) {
+  //     std::string profile_file_name
+  //         = dynamic_cast<string_argument *>(
+  //               parser.arg("output")->arg("profile_file"))
+  //               ->value();
+  //     std::fstream profile_stream(profile_file_name.c_str(),
+  //     std::fstream::out); if (!sig_figs_arg->is_default()) {
+  //       profile_stream << std::setprecision(sig_figs_arg->value());
+  //     }
+  //     write_profiling(profile_stream, profile_data);
+  //     profile_stream.close();
+  // }
   for (size_t i = 0; i < valid_arguments.size(); ++i) {
     delete valid_arguments.at(i);
   }
