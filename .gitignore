@@ -51,3 +51,10 @@ output*.csv
 *.d
 # gdb
 .gdb_history
+
+
+*.perf
+perf.data
+perf.data.old
+main
+*.so
