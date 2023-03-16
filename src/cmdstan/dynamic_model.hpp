@@ -12,16 +12,16 @@ namespace cmdstan {
 
 typedef stan::model::model_base &(*NEW_MODEL)(
     stan::io::var_context &data_context, unsigned int seed,
-    std::ostream *msg_stream);
+    std::ostream *msg_stream, void* ptr);
 
 class DynamicModel {
  public:
-  DynamicModel(std::string filename,
-               int flags = RTLD_NOW | RTLD_DEEPBIND | RTLD_GLOBAL)
-      : filename(filename), flags(flags), handle(nullptr), new_model(nullptr) {}
+  DynamicModel(std::string filename)
+      : filename(filename), handle(nullptr), new_model(nullptr) {}
 
   bool load_model() {
-    if (!(handle = dlopen(filename.c_str(), flags))) {
+    if (!(handle
+          = dlopen(filename.c_str(), RTLD_NOW | RTLD_GLOBAL))) {
       std::cerr << "Failed to load " << filename << ": " << dlerror()
                 << std::endl;
       return false;
@@ -49,7 +49,6 @@ class DynamicModel {
 
  private:
   std::string filename;
-  int flags;
   void *handle;
 };
 

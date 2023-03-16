@@ -163,11 +163,12 @@ main : $(CMDSTAN_MAIN_O) $(LIBSUNDIALS) $(MPI_TARGETS) $(TBB_TARGETS) $(PRECOMPI
 	@echo '--- Compiling, linking C++ code ---'
 	$(LINK.cpp) $(CMDSTAN_MAIN_O) $(LDLIBS) $(LIBSUNDIALS) $(MPI_TARGETS) $(TBB_TARGETS) $(subst \,/,$(OUTPUT_OPTION))
 
+# -fvisibility=hidden -fvisibility-inlines-hidden
 %.so : %.hpp
 	@echo ''
 	@echo '--- Compiling, linking C++ code ---'
-	$(COMPILE.cpp) $(CXXFLAGS_PROGRAM) -x c++ -fPIC -fvisibility=hidden -fvisibility-inlines-hidden  -o $(subst  \,/,$*).o $(subst \,/,$<)
-	$(CXX) $(subst \,/,$*.o) -shared -fPIC -fvisibility=hidden -fvisibility-inlines-hidden $(subst \,/,$(OUTPUT_OPTION))
+	$(COMPILE.cpp) $(CXXFLAGS_PROGRAM) -x c++ -fPIC  -o $(subst  \,/,$*).o $(subst \,/,$<)
+	$(CXX) $(subst \,/,$*.o) -shared -fPIC $(subst \,/,$(OUTPUT_OPTION))
 	$(RM) $(subst  \,/,$*).o
 
 .PHONY: help

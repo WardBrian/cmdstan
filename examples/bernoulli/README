@@ -1,0 +1,55 @@
+- Different RTLD flags seem to have little/no difference
+- -fno-plt, visibility changes seem to have no difference
+- stripping seems to have no difference (doesn't affect nm -D, so makes sense)
+- lots of page faults, for basically every function which touches autodiff state.
+
+
+https://share.firefox.dev/408SZPR
+
+
+Solution (horrible):
+
+It seems that the global autodiff stack is the problem, found by printing out pointers in both pieces of code (see end)
+
+This hypothesis was tested by having `new_model` take in a pointer and assign the DLL's pointer to that. That worked (up until a segfault due to the double-free, whoops!).
+
+In short, we could support this use case if we needed to and it was priority. 
+
+
+```
+(gdb) print *stan::math::ChainableStack::instance_
+$14 = {
+  var_stack_ = std::vector of length 0, capacity 0,
+  var_nochain_stack_ = std::vector of length 1, capacity 1 = {0x5555556f2090},
+  var_alloc_stack_ = std::vector of length 0, capacity 0,
+  memalloc_ = {
+    blocks_ = std::vector of length 1, capacity 1 = {0x5555556f2090 "`\253mUUU"},
+    sizes_ = std::vector of length 1, capacity 1 = {65536},
+    cur_block_ = 0,
+    cur_block_end_ = 0x555555702090 "",
+    next_loc_ = 0x5555556f20a8 "",
+    nested_cur_blocks_ = std::vector of length 1, capacity 1 = {0},
+    nested_next_locs_ = std::vector of length 1, capacity 1 = {0x5555556f2090 "`\253mUUU"},
+    nested_cur_block_ends_ = std::vector of length 1, capacity 1 = {0x555555702090 ""}
+  },
+  nested_var_stack_sizes_ = std::vector of length 1, capacity 1 = {0},
+  nested_var_nochain_stack_sizes_ = std::vector of length 1, capacity 1 = {0},
+  nested_var_alloc_stack_starts_ = std::vector of length 1, capacity 1 = {0}
+}
+
+(gdb) print (stan::math::AutodiffStackSingleton<stan::math::vari_base, stan::math::chainable_alloc>::AutodiffStackStorage ) *0x7ffff7a6b780
+$15 = {
+  var_stack_ = std::vector of length -11728124254301, capacity -11728124254301 = {0x7fffd536b010, 0x7fffd60a1e48, 0x7fffd636b010, 0x555555f23dc0, 0x55555646d040, 0x555556723dc0, 0x0, 0x0, 0x0, 0x555555723510, 0x555555723580, 0x555555723590, 0x5555557235a0, 0x555555723610, 0x555555723620, 0xd, 0x7fffd536a010, 0x7fffb597c318, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x421, 0x7ffff7a1af00 <initial>, 0x1, 0x4, 0x87158f5af16c116c, 0x7ffff7a6b640 <bernoulli_model_namespace::profiles__[abi:cxx11]>, 0x7ffff7a6b588, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x21, 0x55555570cf50, 0x55555570cf40, 0x5555006e6f69, 0x21, 0x55555570d020, 0x55555570d010, 0x736569, 0x41, 0x5555556db048 <vtable for stan::callbacks::unique_stream_writer<std::ostream>+16>, 0x0, 0x55555570c8a0, 0x2, 0x2023, 0x0, 0x0, 0x221, 0x7ffff7e200d8 <vtable for std::basic_fstream<char, std::char_traits<char> >+24>, 0x0, 0x7ffff7e20100 <vtable for std::basic_fstream<char, std::char_traits<char> >+64>, 0x7ffff7e1fd68 <vtable for std::basic_filebuf<char, std::char_traits<char> >+16>, 0x5555557210b0, 0x5555557210b0, 0x5555557210b0, 0x5555557210b0, 0x5555557210b0, 0x5555557230af, 0x7ffff7e28da0, 0x0, 0x0, 0x0...},
+  var_nochain_stack_ = std::vector of length 0, capacity 0,
+  var_alloc_stack_ = std::vector of length 0, capacity 0,
+  memalloc_ = {
+    blocks_ = std::vector of length 0, capacity 0,
+    sizes_ = std::vector of length 0, capacity 0,
+    cur_block_ = 1,
+    cur_block_end_ = 0x1 <error: Cannot access memory at address 0x1>,
+    next_loc_ = 0x1 <error: Cannot access memory at address 0x1>,
+    nested_cur_blocks_ = std::vector of length 0, capacity 0,
+    nested_next_locs_ = std::vector of length 0, capacity 255516999679,
+    nested_cur_block_ends_ = std::vector of length 255535874048, capacity 37748736 = {<error reading variable: Cannot access memory at address 0x17000000>,
+  nested_var_stack_sizes_ = std::vector of length -255485542400, capacity 603979776 = {<error reading variable: Cannot access memory at address 0x1dc40000000>
+```

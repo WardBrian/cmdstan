@@ -58,3 +58,5 @@ perf.data
 perf.data.old
 main
 *.so
+examples/**/bernoulli
+examples/**/bernoulli.hpp

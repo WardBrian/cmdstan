@@ -66,6 +66,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <stdio.h>
 
 #include <stan/math/prim/core/init_threadpool_tbb.hpp>
 
@@ -203,6 +204,10 @@ int command(int argc, const char *argv[]) {
   //////////////////////////////////////////////////
   std::string filename = get_arg_val<string_argument>(parser, "data", "file");
 
+  stan::math::ChainableStack instance;
+
+  printf("MAIN EXE ADDRESS: %p\n", stan::math::ChainableStack::instance_);
+
   std::shared_ptr<stan::io::var_context> var_context
       = get_var_context(filename);
 
@@ -216,7 +221,7 @@ int command(int argc, const char *argv[]) {
   // note: this method is __much__ slower
   // Every internal autodiff call seems to be causing a page fault
   stan::model::model_base &model
-      = dynamic_model.new_model(*var_context, random_seed, &std::cout);
+      = dynamic_model.new_model(*var_context, random_seed, &std::cout, stan::math::ChainableStack::instance_);
 
   std::vector<std::string> model_compile_info = model.model_compile_info();
 

@@ -1,0 +1,3 @@
+
+- compiling with -fvisibility=hidden -fvisibility-inlines-hidden makes it _slower_
+- segfault is new
