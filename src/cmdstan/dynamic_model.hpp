@@ -16,7 +16,8 @@ typedef stan::model::model_base &(*NEW_MODEL)(
 
 class DynamicModel {
  public:
-  DynamicModel(std::string filename, int flags = RTLD_NOW|RTLD_DEEPBIND| RTLD_GLOBAL)
+  DynamicModel(std::string filename,
+               int flags = RTLD_NOW | RTLD_DEEPBIND | RTLD_GLOBAL)
       : filename(filename), flags(flags), handle(nullptr), new_model(nullptr) {}
 
   bool load_model() {

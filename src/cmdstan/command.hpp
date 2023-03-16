@@ -213,8 +213,8 @@ int command(int argc, const char *argv[]) {
     return return_codes::NOT_OK;
   }
 
-  // note: this method is __much__ slower, I'm guessing due to lack of inlining etc.
-  // We could define the dynamic piece as the actual algorithms, I suppose
+  // note: this method is __much__ slower
+  // Every internal autodiff call seems to be causing a page fault
   stan::model::model_base &model
       = dynamic_model.new_model(*var_context, random_seed, &std::cout);
 

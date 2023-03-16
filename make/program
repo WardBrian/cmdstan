@@ -48,7 +48,7 @@ endif
 	@echo ''
 	@echo '--- Translating Stan model to C++ code ---'
 	$(WINE) bin/stanc$(EXE) $(STANCFLAGS) --o=$(subst  \,/,$@) $(subst  \,/,$<)
-	sed -i 's/\/\/ Boilerplate*/extern "C"/' $(subst  \,/,$@)
+	sed -i 's/\/\/ Boilerplate*/extern "C" __attribute__ ((visibility ("default")))/' $(subst  \,/,$@)
 
 %.d: %.hpp
 
