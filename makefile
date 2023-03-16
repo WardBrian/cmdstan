@@ -315,6 +315,7 @@ clean: clean-manual
 	$(RM) $(wildcard $(patsubst %.stan,%.hpp,$(TEST_MODELS)))
 	$(RM) $(wildcard $(patsubst %.stan,%.o,$(TEST_MODELS)))
 	$(RM) $(wildcard $(patsubst %.stan,%$(EXE),$(TEST_MODELS)))
+	$(RM) examples/bernoulli/bernoulli$(EXE) examples/bernoulli/bernoulli.o examples/bernoulli/bernoulli.d examples/bernoulli/bernoulli.hpp examples/bernoulli/bernoulli.so
 
 clean-deps:
 	@echo '  removing dependency files'
@@ -326,7 +327,6 @@ clean-all: clean clean-deps clean-libraries
 	$(RM) bin/stanc$(EXE) bin/stansummary$(EXE) bin/print$(EXE) bin/diagnose$(EXE)
 	$(RM) -r src/cmdstan/main*.o bin/cmdstan
 	$(RM) $(wildcard $(STAN)src/stan/model/model_header*.hpp.gch)
-	$(RM) examples/bernoulli/bernoulli$(EXE) examples/bernoulli/bernoulli.o examples/bernoulli/bernoulli.d examples/bernoulli/bernoulli.hpp
 	$(RM) -r $(wildcard $(BOOST)/stage/lib $(BOOST)/bin.v2 $(BOOST)/tools/build/src/engine/bootstrap/ $(BOOST)/tools/build/src/engine/bin.* $(BOOST)/project-config.jam* $(BOOST)/b2 $(BOOST)/bjam $(BOOST)/bootstrap.log)
 
 clean-program:
