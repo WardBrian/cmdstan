@@ -13,7 +13,10 @@ It seems that the global autodiff stack is the problem, found by printing out po
 
 This hypothesis was tested by having `new_model` take in a pointer and assign the DLL's pointer to that. That worked (up until a segfault due to the double-free, whoops!).
 
-In short, we could support this use case if we needed to and it was priority. 
+In short, we could support this use case if we needed to and it was priority.
+We would do this by re-engineering such that either the global autodiff stack is extern
+in the library, or by doing something very similar to this hacky solution and passing in memory for the DLL
+to use. We would need to make sure that frees/mallocs are done on the same side of the boundary, however.
 
 
 ```

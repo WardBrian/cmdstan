@@ -104,7 +104,6 @@ class bernoulli_model final : public model_base_crtp<bernoulli_model> {
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }
-    printf("MODEL SO ADDRESS: %p\n", stan::math::ChainableStack::instance_);
     lp_accum__.add(lp__);
     return lp_accum__.sum();
   }
@@ -313,10 +312,13 @@ using stan_model = bernoulli_model_namespace::bernoulli_model;
 extern "C" __attribute__((visibility("default"))) stan::model::model_base&
 new_model(stan::io::var_context& data_context, unsigned int seed,
           std::ostream* msg_stream, void* ptr) {
-  stan_model* m = new stan_model(data_context, seed, msg_stream);
+  printf("MODEL SO ADDRESS: %p\n", stan::math::ChainableStack::instance_);
+  printf("Assigning address...\n");
   stan::math::ChainableStack::instance_
       = reinterpret_cast<stan::math::ChainableStack::AutodiffStackStorage*>(
           ptr);
+  printf("MODEL SO ADDRESS: %p\n", stan::math::ChainableStack::instance_);
+  stan_model* m = new stan_model(data_context, seed, msg_stream);
   return *m;
 }
 stan::math::profile_map& get_stan_profile_data() {
