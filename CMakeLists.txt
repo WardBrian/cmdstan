@@ -43,7 +43,7 @@ FetchContent_Declare(
 FetchContent_GetProperties(sundials)
 if(NOT sundials_POPULATED)
   FetchContent_Populate(sundials)
-  add_subdirectory(${sundials_SOURCE_DIR} ${sundials_BINARY_DIR})
+  add_subdirectory(${sundials_SOURCE_DIR} ${sundials_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -181,5 +181,5 @@ if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists-model.txt)
   include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists-model.txt)
 endif()
 
-
+# TODO build bernoulli example
 # TODO tests
