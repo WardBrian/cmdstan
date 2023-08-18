@@ -51,3 +51,8 @@ output*.csv
 *.d
 # gdb
 .gdb_history
+
+
+# CMake
+build/
+CMakeLists-model.txt
