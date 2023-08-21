@@ -11,10 +11,15 @@ import platform
 # note: since we'd be using system python,
 # we'd want to probably avoid using pathlib
 # and subprocess.run
+WINDOWS = platform.system() == "Windows"
 
 HERE = Path(__file__).parent
 BUILD = Path(os.getenv("CMDSTAN_BUILD_DIR", HERE/"build"))
-EXE = ".exe" if platform.system() == "Windows" else ""
+EXE = ".exe" if WINDOWS else ""
+EXTRA_WINDOWS_ARGS = ["-A", "x64", "-T" "ClangCL"] if WINDOWS else []
+EXTRA_WINDOWS_BUILD_ARGS = ["--config", "Release"] if WINDOWS else []
+BIN = BUILD/"bin"/"Release" if platform.system() == "Windows" else BUILD/"bin"
+
 
 cli = argparse.ArgumentParser()
 cli.add_argument("stan_file", help="stan file to build")
@@ -34,17 +39,17 @@ def main(argparsed):
     shutil.copy2(STAN_FILE, BUILD/STAN_FILE.name)
     # copy executable to build folder to avoid recompilation if we can
     if (STAN_FILE.with_suffix(EXE).exists()):
-        shutil.copy2(STAN_FILE.with_suffix(EXE), BUILD/"bin"/STAN_FILE.with_suffix(EXE).name)
+        shutil.copy2(STAN_FILE.with_suffix(EXE), BIN/STAN_FILE.with_suffix(EXE).name)
 
     print("Runing cmake")
-    subprocess.run(["cmake", "-S", str(HERE), "-B", str(BUILD), "-Wno-dev"] + cmake_args, check=True)
+    subprocess.run(["cmake", "-S", str(HERE), "-B", str(BUILD), "-Wno-dev"] + EXTRA_WINDOWS_ARGS + cmake_args, check=True)
 
     print("Building")
-    subprocess.run(["cmake", "--build", str(BUILD), '-j', '10', '-t' ,str(STAN_FILE.stem)], check=True)
+    subprocess.run(["cmake", "--build", str(BUILD), '-j', '10', '-t' ,str(STAN_FILE.stem)] + EXTRA_WINDOWS_BUILD_ARGS, check=True)
 
     # copy build executable back to original folder, clean up
-    shutil.copy2(BUILD/"bin"/STAN_FILE.with_suffix(EXE).name, STAN_FILE.with_suffix(EXE))
-    (BUILD/"bin"/STAN_FILE.with_suffix(EXE)).unlink(missing_ok=True)
+    shutil.copy2(BIN/STAN_FILE.with_suffix(EXE).name, STAN_FILE.with_suffix(EXE))
+    (BIN/STAN_FILE.with_suffix(EXE)).unlink(missing_ok=True)
 
     print("Done!")
 

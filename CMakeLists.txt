@@ -98,11 +98,18 @@ endif()
 
 #################### end dependencies ####################
 
-add_compile_options(
-  -Wno-deprecated-declarations
-  -O3)
 
 add_compile_definitions(NO_FPRINTF_OUTPUT BOOST_DISABLE_ASSERTS TBB_INTERFACE_NEW _REENTRANT)
+if (UNIX)
+  add_compile_options(
+    -Wno-deprecated-declarations
+    -O3)
+elseif (WIN32)
+  # so far only tested with "-T ClangCL"
+  add_compile_definitions(_BOOST_LGAMMA)
+  add_compile_options(/bigobj /Z:_cplusplus)
+  # TODO figure out way to "Install" TBB dlls
+endif()
 
 option(STAN_THREADS "Enable threading support" ON)
 if (STAN_THREADS)
