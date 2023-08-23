@@ -15,10 +15,11 @@ WINDOWS = platform.system() == "Windows"
 
 HERE = Path(__file__).parent
 BUILD = Path(os.getenv("CMDSTAN_BUILD_DIR", HERE/"build"))
+BIN = BUILD/"Release" if platform.system() == "Windows" else BUILD
+
 EXE = ".exe" if WINDOWS else ""
 EXTRA_WINDOWS_ARGS = ["-A", "x64", "-T" "ClangCL"] if WINDOWS else []
 EXTRA_WINDOWS_BUILD_ARGS = ["--config", "Release"] if WINDOWS else []
-BIN = BUILD/"bin"/"Release" if platform.system() == "Windows" else BUILD/"bin"
 
 
 cli = argparse.ArgumentParser()
@@ -26,7 +27,8 @@ cli.add_argument("stan_file", help="stan file to build")
 
 def main(argparsed):
     args, cmake_args = argparsed
-    BUILD.mkdir(exist_ok=True,parents=True)
+    BIN.mkdir(exist_ok=True,parents=True)
+
 
     STAN_FILE = Path(args.stan_file).with_suffix(".stan")
     if not STAN_FILE.exists():
@@ -36,7 +38,8 @@ def main(argparsed):
     with open(HERE/"CMakeLists-model.txt", "w") as f:
         f.write(f"stan_model({STAN_FILE.stem})\n")
     # also need to handle includes
-    shutil.copy2(STAN_FILE, BUILD/STAN_FILE.name)
+    if STAN_FILE.parent.resolve() != HERE:
+        shutil.copy2(STAN_FILE, HERE/STAN_FILE.name)
     # copy executable to build folder to avoid recompilation if we can
     if (STAN_FILE.with_suffix(EXE).exists()):
         shutil.copy2(STAN_FILE.with_suffix(EXE), BIN/STAN_FILE.with_suffix(EXE).name)

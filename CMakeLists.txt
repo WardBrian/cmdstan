@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20.2)
 project(
     cmdstan
-    VERSION 0.0.1
+    VERSION 2.33.0
     LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -12,55 +12,6 @@ set(CMAKE_CXX_EXTENSIONS NO)
 # consider also local: https://cmake.org/cmake/help/latest/guide/using-dependencies/index.html#fetchcontent-and-find-package-integration
 include(FetchContent)
 
-# dependencies
-FetchContent_Declare(
-  tbb
-  GIT_REPOSITORY https://github.com/oneapi-src/oneTBB
-  GIT_TAG        v2021.7.0  # adjust this to the version you need
-)
-set(TBB_TEST OFF)
-FetchContent_MakeAvailable(tbb)
-
-FetchContent_Declare(
-  Eigen
-  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  GIT_TAG 3.4.0)
-set(EIGEN_BUILD_DOC OFF)
-# note: To disable eigen tests,
-# you should put this code in a add_subdirectory to avoid to change
-# BUILD_TESTING for your own project too since variables are directory
-# scoped
-set(BUILD_TESTING OFF)
-set(EIGEN_BUILD_PKGCONFIG OFF)
-FetchContent_MakeAvailable(Eigen)
-
-FetchContent_Declare(
-  sundials
-  GIT_REPOSITORY https://github.com/LLNL/sundials
-  GIT_TAG        v6.5.1
-    # adjust this to the version you need
-)
-
-FetchContent_GetProperties(sundials)
-if(NOT sundials_POPULATED)
-  FetchContent_Populate(sundials)
-  add_subdirectory(${sundials_SOURCE_DIR} ${sundials_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
-
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_STATIC_RUNTIME ON)
-set(BOOST_ENABLE_CMAKE ON)
-FetchContent_Declare(
-  boost
-  URL https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
-)
-
-FetchContent_GetProperties(boost)
-if(NOT boost_POPULATED)
-  FetchContent_Populate(boost)
-  set(boost_INCLUDE_DIR ${boost_SOURCE_DIR})
-endif()
-
 FetchContent_Declare(rapidjson
     GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
     GIT_TAG        master)
@@ -68,20 +19,6 @@ FetchContent_GetProperties(rapidjson)
 if(NOT rapidjson_POPULATED)
   FetchContent_Populate(rapidjson)
   set(rapidjson_INCLUDE_DIR ${rapidjson_SOURCE_DIR}/include)
-endif()
-
-# TODO opencl, MPI
-
-FetchContent_Declare(
-  stanmath
-  GIT_REPOSITORY https://github.com/stan-dev/math
-  GIT_TAG        develop # replace with the version you want to use
-  GIT_SHALLOW    TRUE
-)
-
-FetchContent_GetProperties(stanmath)
-if(NOT stanmath_POPULATED)
-  FetchContent_Populate(stanmath)
 endif()
 
 FetchContent_Declare(
@@ -97,94 +34,39 @@ if(NOT stan_POPULATED)
   set(stan_INCLUDE_DIR ${stan_SOURCE_DIR}/src)
 endif()
 
+# result of installing https://github.com/WardBrian/math/tree/experiment/cmake
+list(APPEND CMAKE_PREFIX_PATH "../math-install")
+find_package(StanMath 4.6.2 REQUIRED)
 #################### end dependencies ####################
 
-
-add_compile_definitions(NO_FPRINTF_OUTPUT BOOST_DISABLE_ASSERTS TBB_INTERFACE_NEW _REENTRANT)
-if (UNIX)
-  add_compile_options(
-    -Wno-deprecated-declarations
-    -O3)
-elseif (WIN32)
-  # so far only tested with "-T ClangCL"
-  add_compile_definitions(_BOOST_LGAMMA)
-  add_compile_options(/bigobj /Z:_cplusplus)
-  # TODO figure out way to "Install" TBB dlls
-endif()
+include(stanc.cmake.inc)
 
 option(STAN_THREADS "Enable threading support" ON)
 if (STAN_THREADS)
-  add_compile_definitions(STAN_THREADS)
+    add_compile_definitions(STAN_THREADS)
 endif()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
-
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(STANC3_OS linux)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(STANC3_OS mac)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(STANC3_OS windows)
-else()
-  message(FATAL_ERROR "Unsupported OS")
-endif()
-set(STANC3_VERSION nightly)
-
-if (NOT EXISTS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/stanc${CMAKE_EXECUTABLE_SUFFIX})
-  message(STATUS "Downloading stanc3")
-  file(DOWNLOAD https://github.com/stan-dev/stanc3/releases/download/${STANC3_VERSION}/${STANC3_OS}-stanc ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/stanc${CMAKE_EXECUTABLE_SUFFIX})
-  file(CHMOD ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/stanc${CMAKE_EXECUTABLE_SUFFIX} FILE_PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
-endif()
-
-include_directories(src)
-include_directories(lib/CLI11-1.9.1) # TODO better CLI11
-include_directories(${boost_INCLUDE_DIR} ${stanmath_SOURCE_DIR} ${rapidjson_INCLUDE_DIR} ${stan_INCLUDE_DIR})
-
-
-add_executable(stansummary src/cmdstan/stansummary.cpp)
-target_link_libraries(stansummary PRIVATE
-  TBB::tbb
-  Eigen3::Eigen
-  sundials_kinsol
-  sundials_cvodes)
-
-add_executable(diagnose src/cmdstan/diagnose.cpp)
-target_link_libraries(diagnose PRIVATE
-  TBB::tbb
-  Eigen3::Eigen
-  sundials_kinsol
-  sundials_cvodes)
-
-add_library(cmdstan_main OBJECT src/cmdstan/main.cpp)
-target_link_libraries(cmdstan_main PUBLIC
-  TBB::tbb
-  Eigen3::Eigen
-  sundials_kinsol
-  sundials_cvodes)
-
-target_precompile_headers(cmdstan_main PUBLIC
-  ${stan_INCLUDE_DIR}/stan/model/model_header.hpp)
+add_subdirectory(src)
 
 # the following macro is used to generate the executables
 # for a given stan model
 macro(stan_model arg1)
   add_custom_command(
-    OUTPUT ${PROJECT_BINARY_DIR}/${arg1}.cpp
-    DEPENDS ${arg1}.stan ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/stanc${CMAKE_EXECUTABLE_SUFFIX}
-    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/stanc${CMAKE_EXECUTABLE_SUFFIX} ${arg1}.stan --o=${PROJECT_BINARY_DIR}/${arg1}.cpp)
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${arg1}.cpp
+    DEPENDS ${arg1}.stan ${PROJECT_BINARY_DIR}/bin/stanc${CMAKE_EXECUTABLE_SUFFIX}
+    COMMAND ${PROJECT_BINARY_DIR}/bin/stanc${CMAKE_EXECUTABLE_SUFFIX} ${arg1}.stan --o=${CMAKE_CURRENT_BINARY_DIR}/${arg1}.cpp
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
   add_executable(
     ${arg1}
-    ${PROJECT_BINARY_DIR}/${arg1}.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${arg1}.cpp
     $<TARGET_OBJECTS:cmdstan_main>
   )
 
+  target_include_directories(${arg1} PRIVATE
+    ${stan_INCLUDE_DIR})
   target_link_libraries(${arg1} PRIVATE
-    TBB::tbb
-    Eigen3::Eigen
-    sundials_kinsol
-    sundials_cvodes)
+    StanMath::stanmath)
   target_precompile_headers(${arg1} REUSE_FROM cmdstan_main)
 endmacro()
 
@@ -193,5 +75,5 @@ if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists-model.txt)
   include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists-model.txt)
 endif()
 
-# TODO build bernoulli example
+add_subdirectory(examples)
 # TODO tests

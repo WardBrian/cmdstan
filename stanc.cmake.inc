@@ -1,0 +1,17 @@
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(STANC3_OS linux)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(STANC3_OS mac)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(STANC3_OS windows)
+else()
+  message(FATAL_ERROR "Unsupported OS")
+endif()
+set(STANC3_VERSION nightly)
+
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/bin/stanc${CMAKE_EXECUTABLE_SUFFIX})
+  message(STATUS "Downloading stanc3")
+  file(DOWNLOAD https://github.com/stan-dev/stanc3/releases/download/${STANC3_VERSION}/${STANC3_OS}-stanc ${PROJECT_BINARY_DIR}/bin/stanc${CMAKE_EXECUTABLE_SUFFIX})
+  file(CHMOD ${PROJECT_BINARY_DIR}/bin/stanc${CMAKE_EXECUTABLE_SUFFIX} FILE_PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
+endif()
