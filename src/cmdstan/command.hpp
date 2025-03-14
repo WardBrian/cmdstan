@@ -15,6 +15,7 @@
 #include <cmdstan/write_model.hpp>
 #include <cmdstan/write_stan.hpp>
 #include <cmdstan/write_config.hpp>
+#include <cmdstan/binary_writer.hpp>
 #include <stan/math/prim/fun/Eigen.hpp>
 #include <stan/math/prim/core/init_threadpool_tbb.hpp>
 #include <stan/callbacks/interrupt.hpp>
@@ -22,7 +23,6 @@
 #include <stan/callbacks/logger.hpp>
 #include <stan/callbacks/stream_logger.hpp>
 #include <stan/callbacks/stream_writer.hpp>
-#include <stan/callbacks/unique_stream_writer.hpp>
 #include <stan/callbacks/writer.hpp>
 #include <stan/io/dump.hpp>
 #include <stan/io/ends_with.hpp>
@@ -188,10 +188,8 @@ int command(int argc, const char *argv[]) {
   stan::callbacks::writer init_writer;  // unused - save param initializations
   std::vector<stan::callbacks::writer> init_writers{num_chains,
                                                     stan::callbacks::writer{}};
-  std::vector<stan::callbacks::unique_stream_writer<std::ofstream>>
-      sample_writers;
-  std::vector<stan::callbacks::unique_stream_writer<std::ofstream>>
-      diagnostic_csv_writers;
+  std::vector<cmdstan::io::binary_writer<std::ofstream>> sample_writers;
+  std::vector<cmdstan::io::binary_writer<std::ofstream>> diagnostic_csv_writers;
   std::vector<stan::callbacks::json_writer<std::ofstream>>
       diagnostic_json_writers;
   std::vector<stan::callbacks::json_writer<std::ofstream>> metric_json_writers;
@@ -207,7 +205,7 @@ int command(int argc, const char *argv[]) {
     }
     if (num_chains == 1) {
       init_filestream_writers(sample_writers, num_chains, id, output_file, "",
-                              ".csv", sig_figs, "# ");
+                              ".stan_bin", sig_figs);
       if (!diagnostic_file.empty()) {
         save_single_paths = true;
         init_filestream_writers(diagnostic_json_writers, num_chains, id,
@@ -218,7 +216,7 @@ int command(int argc, const char *argv[]) {
     } else {
       if (save_single_paths || !diagnostic_file.empty()) {
         init_filestream_writers(sample_writers, num_chains, id, output_file,
-                                "_path", ".csv", sig_figs, "# ");
+                                "_path", ".csv", sig_figs);
         init_filestream_writers(diagnostic_json_writers, num_chains, id,
                                 diagnostic_file, "_path", ".json", sig_figs);
       } else {
@@ -229,7 +227,7 @@ int command(int argc, const char *argv[]) {
     init_null_writers(diagnostic_csv_writers, num_chains);
   } else {
     init_filestream_writers(sample_writers, num_chains, id, output_file, "",
-                            ".csv", sig_figs, "# ");
+                            ".csv", sig_figs);
     if (!diagnostic_file.empty()) {
       if (user_method->arg("laplace")) {
         init_filestream_writers(diagnostic_json_writers, num_chains, id,
@@ -238,7 +236,7 @@ int command(int argc, const char *argv[]) {
 
       } else {
         init_filestream_writers(diagnostic_csv_writers, num_chains, id,
-                                diagnostic_file, "", ".csv", sig_figs, "# ");
+                                diagnostic_file, "", ".csv", sig_figs);
         init_null_writers(diagnostic_json_writers, num_chains);
       }
     } else {
@@ -343,8 +341,8 @@ int command(int argc, const char *argv[]) {
       auto output_filenames
           = file::make_filenames(output_file, "", ".csv", 1, id);
       auto ofs = file::safe_create(output_filenames[0], sig_figs);
-      stan::callbacks::unique_stream_writer<std::ofstream> pathfinder_writer(
-          std::move(ofs), "# ");
+      cmdstan::io::binary_writer<std::ofstream> pathfinder_writer(
+          std::move(ofs));
       write_config(pathfinder_writer, parser, model);
       return_code = stan::services::pathfinder::pathfinder_lbfgs_multi(
           model, init_contexts, random_seed, id, init_radius, history_size,
@@ -786,7 +784,7 @@ int command(int argc, const char *argv[]) {
           }
         }
       }  // end static HMC
-    }    // ---- sample end ---- //
+    }  // ---- sample end ---- //
   } else if (user_method->arg("variational")) {
     // ---- variational start ---- //
     list_argument *algo = dynamic_cast<list_argument *>(
