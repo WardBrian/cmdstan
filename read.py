@@ -36,6 +36,10 @@ def read(file):
 
 if __name__ == "__main__":
     header, data = read(sys.argv[1])
-    print(header)
-    print(data)
-    print(data.mean(axis=0))
+    out = sys.argv[2] if len(sys.argv) > 2 else None
+    if out:
+        np.savetxt(out, data, fmt="%.8g",delimiter=",", header=",".join(header), comments="")
+    else:
+        print(header)
+        print(data)
+        print(data.mean(axis=0))
