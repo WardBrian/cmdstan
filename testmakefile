@@ -1,0 +1,55 @@
+# MVP CmdStan Makefile
+# Assumes TBB and SUNDIALS are already built, e.g.
+# cd stan/lib/stan_math; make -f make/standalone math-libs
+# or install them from e.g. conda
+
+# Does not handle magic for STAN_THREADS, etc
+
+# on windows, simply set
+# CXX=clang # assuming MSVC clang installed
+# LDFLAGS = -Wl",/LIBPATH:C:\ProgramData\Miniconda3\envs\clangtest\Library\lib\"
+# SUNDIALS_INC = "C:\ProgramData\Miniconda3\envs\clangtest\Library\include\"
+# TBB_INC = "C:\ProgramData\Miniconda3\envs\clangtest\Library\include\"
+
+STAN ?= stan/
+MATH ?= $(STAN)lib/stan_math/
+RAPIDJSON ?= $(STAN)lib/rapidjson_1.1.0/
+CLI11 ?= lib/CLI11-1.9.1/
+EIGEN ?= $(MATH)lib/eigen_3.3.9
+BOOST ?= $(MATH)lib/boost_1.78.0
+SUNDIALS ?= $(MATH)lib/sundials_6.1.1
+
+SUNDIALS_INC ?= $(SUNDIALS)/include $(SUNDIALS)/src/sundials
+SUNDIALS_LIB ?= $(SUNDIALS)/lib
+TBB_INC ?= $(MATH)lib/tbb_2020.3/include
+TBB_LIB ?= $(MATH)lib/tbb
+
+CPPFLAGS += -I src -I $(STAN)src -I $(MATH) -I $(RAPIDJSON) -I $(CLI11) -I $(EIGEN) -I $(BOOST) -I $(TBB_INC) $(foreach loc,$(SUNDIALS_INC), -I $(loc))
+
+LDFLAGS ?= -Wl,-L,"$(TBB_LIB)" -Wl,-rpath,"$(TBB_LIB)" -Wl,-L,"$(SUNDIALS_LIB)"
+LDLIBS ?= -ltbb -lsundials_nvecserial -lsundials_cvodes -lsundials_idas -lsundials_kinsol
+
+CXXFLAGS += -std=c++1y -Wno-sign-compare -Wno-ignored-attributes -D_REENTRANT -DBOOST_DISABLE_ASSERTS -O3
+
+.PHONY: math-libs
+math-libs:
+	$(MAKE) -C $(MATH) -f make/standalone math-libs
+
+# dependencies
+%.d: %.cpp
+		$(COMPILE.cpp) $(CPPFLAGS) -MT $(subst \,/,$*.o) -MM -E -MG -MP -MF $@ $<
+
+# main.o dependencies - gnu make automatically rebuilds based on above rule
+include src/cmdstan/main.d
+
+.PHONY: force
+make/saved_compiler_flags: force
+	@echo '$(CXXFLAGS)' | cmp -s - $@ || echo '$(CXXFLAGS)' > $@
+
+src/cmdstan/main.o: make/saved_compiler_flags
+
+%.cpp : %.stan bin/stanc
+	bin/stanc $(STANCFLAGS) --o=$(subst  \,/,$@) $(subst  \,/,$<)
+
+%: %.o src/cmdstan/main.o # math-libs
+	$(LINK.cpp) $(LDFLAGS) $(subst \,/,$*.o) src/cmdstan/main.o $(LDLIBS) -o $@
